@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Data
+data/sample_images/*.jpg
+data/sample_images/*.png
+data/sample_images/*.tiff
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Claude
+.claude/

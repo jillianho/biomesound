@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0A0A0F;
+  --foreground: #C8C8D0;
+  --accent: #00F0FF;
+  --accent-red: #FF2D2D;
+  --surface: #12121A;
+  --surface-light: #1A1A25;
+  --muted: #6B6B78;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-red: var(--accent-red);
+  --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-light);
+  border-radius: 3px;
+}
+
+/* Waveform container styling */
+.waveform-container wave {
+  overflow: hidden !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInSlow {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Selection color */
+::selection {
+  background: rgba(0, 240, 255, 0.2);
+  color: #fff;
+}
+
+/* Range input track for Firefox */
+input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--surface-light);
+  border-radius: 999px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+}
