@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: biomesound-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
