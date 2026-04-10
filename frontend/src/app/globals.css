@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0A0A0F;
-  --foreground: #C8C8D0;
-  --accent: #00F0FF;
-  --accent-red: #FF2D2D;
-  --surface: #12121A;
-  --surface-light: #1A1A25;
-  --muted: #6B6B78;
+  --background: #080C0F;
+  --foreground: #E8EDF2;
+  --accent: #00E5A0;
+  --accent-red: #FF4C4C;
+  --surface: #0F1519;
+  --surface-light: #1A2229;
+  --muted: rgba(232,237,242,0.45);
+  --border-line: rgba(255,255,255,0.07);
 }
 
 @theme inline {
@@ -26,6 +27,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* ── Dashboard grid: result view layout ── */
+@media (min-width: 1024px) {
+  .result-grid {
+    grid-template-rows: auto 1fr 180px;
+  }
 }
 
 /* Scrollbar styling */

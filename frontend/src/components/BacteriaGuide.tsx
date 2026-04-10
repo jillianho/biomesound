@@ -184,6 +184,23 @@ export default function BacteriaGuide({ biomeState }: BacteriaGuideProps) {
             : health > 0.35 ? "245,166,35"
             : "255,69,88";
 
+          // Likelihood percentage and meaning
+          let likelihood = val !== null ? Math.round(val * 100) : null;
+          let meaning = "";
+          if (val !== null) {
+            if (b.goodDirection === "high") {
+              if (val > 0.7) meaning = "Optimal presence";
+              else if (val > 0.4) meaning = "Moderate presence";
+              else meaning = "Low presence";
+            } else if (b.goodDirection === "low") {
+              if (val < 0.3) meaning = "Optimal (low)";
+              else if (val < 0.6) meaning = "Moderate (watch)";
+              else meaning = "High (risk marker)";
+            } else {
+              meaning = "See details";
+            }
+          }
+
           return (
             <button
               key={b.id}
@@ -207,9 +224,16 @@ export default function BacteriaGuide({ biomeState }: BacteriaGuideProps) {
               <div style={{ fontSize: "9px", color: "rgba(200,212,224,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>
                 {b.nickname}
               </div>
+              {/* Likelihood bar and percentage */}
               {val !== null && (
-                <div style={{ height: "2px", background: "rgba(255,255,255,0.05)", borderRadius: "1px", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${val * 100}%`, background: `rgb(${statusColor})`, transition: "width 0.8s ease" }} />
+                <div style={{ marginBottom: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ flex: 1, height: "4px", background: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${val * 100}%`, background: `rgb(${statusColor})`, transition: "width 0.8s ease" }} />
+                    </div>
+                    <span style={{ fontSize: "10px", color: `rgba(${statusColor},0.85)`, fontFamily: "var(--font-mono)", minWidth: 28, textAlign: "right" }}>{likelihood}%</span>
+                  </div>
+                  <div style={{ fontSize: "9px", color: "rgba(200,212,224,0.5)", marginTop: 2 }}>{meaning}</div>
                 </div>
               )}
               {val === null && (

@@ -58,7 +58,20 @@ export default function GutViewer({ file }: GutViewerProps) {
         if (cancelled) return;
 
         const data = await ffmpeg.readFile(outputName);
-        const blob = new Blob([data], { type: "video/mp4" });
+        // Convert to ArrayBuffer-backed Uint8Array for Blob compatibility
+        let blobPart: Uint8Array;
+        let arrayBuffer: ArrayBuffer;
+        if (data instanceof Uint8Array) {
+          // If buffer is not a true ArrayBuffer, copy to a new ArrayBuffer
+          if (data.buffer instanceof ArrayBuffer && !(data.buffer instanceof SharedArrayBuffer)) {
+            arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+          } else {
+            arrayBuffer = Uint8Array.from(data).buffer;
+          }
+        } else {
+          arrayBuffer = new ArrayBuffer(0);
+        }
+        const blob = new Blob([arrayBuffer], { type: "video/mp4" });
         setConvertedUrl(URL.createObjectURL(blob));
 
         // Clean up ffmpeg files
@@ -81,7 +94,7 @@ export default function GutViewer({ file }: GutViewerProps) {
 
     return () => {
       cancelled = true;
-      const term = ffmpegRef.current?.terminate?.();
+      const term: any = ffmpegRef.current?.terminate?.();
       if (term && typeof term.then === "function") {
         term.catch(() => {});
       }

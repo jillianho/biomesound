@@ -12,6 +12,7 @@ import SensorPanel from "@/components/SensorPanel";
 import GutInsights from "@/components/GutInsights";
 import { runPipeline, getAudioUrl, generateFromState, type BiomeState } from "@/lib/api";
 import BacteriaGuide from "@/components/BacteriaGuide";
+import WaveformAnimation from "@/components/WaveformAnimation";
 
 type InputMode = "image" | "sensor";
 type ResultTab = "biome" | "insights" | "bacteria";
@@ -45,6 +46,14 @@ const STATE_COLORS: Record<string, string> = {
   dysbiosis:      "255, 140, 66",
   inflamed:       "255, 69, 88",
 };
+
+function scoreLabel(s: number): string {
+  if (s >= 85) return "Peak diversity — gut thriving";
+  if (s >= 70) return "Good diversity — healthy fermentation";
+  if (s >= 50) return "Moderate activity — room to improve";
+  if (s >= 30) return "Low activity — disrupted state";
+  return "Critical — inflammation or dysbiosis";
+}
 
 function deriveScore(b: BiomeState): number {
   return Math.round(
@@ -145,10 +154,10 @@ export default function Home() {
         <ParticleBackground />
         <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-2xl">
           <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-[0.2em] sm:tracking-[0.3em] text-foreground/90 mb-3">
-              BIOME SOUND
-            </h1>
-            <p className="text-muted text-xs sm:text-sm tracking-widest uppercase">
+            <p className="font-mono text-[15px] tracking-[0.12em] uppercase mb-2" style={{ color: "#00E5A0" }}>
+              Biome <span style={{ color: "rgba(0,229,160,0.45)" }}>///</span> Sound
+            </p>
+            <p className="font-mono text-[11px] tracking-[0.15em] uppercase" style={{ color: "rgba(232,237,242,0.45)" }}>
               Your gut composes the music
             </p>
           </div>
@@ -204,147 +213,187 @@ export default function Home() {
   const mood = meta?.mood || "Smooth fermentation";
   const moodDesc = MOOD_DESCRIPTIONS[gutState] || MOOD_DESCRIPTIONS["healthy"];
 
+  const CELL = "p-7 flex flex-col" as const;
+  const LABEL = "font-mono text-[10px] uppercase tracking-[0.15em] mb-4 flex-shrink-0" as const;
+
   return (
-    <main className={`relative flex-1 min-h-screen px-4 py-6 sm:px-8 lg:px-12 ${wrapClass}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 sm:mb-8">
-        <button onClick={handleReset} className="text-muted hover:text-foreground text-xs sm:text-sm font-mono transition-colors group flex items-center gap-1.5">
-          <span className="inline-block transition-transform group-hover:-translate-x-0.5">&larr;</span>
-          New scan
-        </button>
-        <h1 className="text-[10px] sm:text-sm tracking-[0.2em] text-muted/50 uppercase">BIOME SOUND</h1>
-      </div>
+    <main className={`flex-1 flex flex-col ${wrapClass}`} style={{ background: "#080C0F" }}>
 
-      <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12 max-w-7xl mx-auto">
+      {/* ── Header ── */}
+      <header
+        className="flex items-center justify-between px-8 py-5 flex-shrink-0"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+      >
+        <span className="font-mono text-[13px] tracking-[0.12em] uppercase" style={{ color: "#00E5A0" }}>
+          Biome <span style={{ color: "rgba(0,229,160,0.45)" }}>///</span> Sound
+        </span>
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: `rgb(${rgb})` }} />
+          <span className="font-mono text-[11px]" style={{ color: "rgba(232,237,242,0.45)" }}>
+            {gutState.replace(/_/g, " ")}
+          </span>
+        </div>
+      </header>
 
-        {/* ── LEFT COLUMN ── */}
-        <div className="lg:w-[38%] flex flex-col gap-5 lg:sticky lg:top-8 lg:self-start">
+      {/* ── Dashboard grid ── */}
+      <div
+        className="result-grid flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-px"
+        style={{ background: "rgba(255,255,255,0.07)" }}
+      >
 
-          {/* BIG GUT SCORE CARD */}
-          <div
-            className="rounded border p-5"
-            style={{ borderColor: `rgba(${rgb}, 0.25)`, background: `rgba(${rgb}, 0.04)` }}
-          >
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] mb-2" style={{ color: `rgba(${rgb}, 0.6)` }}>
-              Gut score
-            </p>
-            <div className="flex items-end justify-between gap-4 mb-3">
-              {/* Big number */}
-              <span
-                className="font-mono leading-none"
-                style={{ fontSize: "72px", fontWeight: 700, color: `rgb(${rgb})`, letterSpacing: "-0.02em", lineHeight: 1 }}
-              >
-                {score}
-              </span>
-              {/* Mood + state */}
-              <div className="text-right pb-1">
-                <p className="font-mono text-[9px] uppercase tracking-[0.15em] mb-1" style={{ color: `rgba(${rgb}, 0.5)` }}>
-                  Music mood
-                </p>
-                <p className="text-base font-light" style={{ color: `rgb(${rgb})` }}>{mood}</p>
-                <p className="font-mono text-[9px] uppercase tracking-wider mt-1" style={{ color: "rgba(200,212,224,0.35)" }}>
-                  {gutState.replace(/_/g, " ")}
-                </p>
-              </div>
-            </div>
-
-            {/* Score bar */}
-            <div className="h-[2px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <div
-                className="h-full rounded-full transition-all duration-1000"
-                style={{ width: `${score}%`, background: `rgb(${rgb})`, boxShadow: `0 0 8px rgba(${rgb},0.4)` }}
-              />
-            </div>
-
-            {/* Mood description */}
-            <p className="mt-3 text-[11px] leading-relaxed" style={{ color: "rgba(200,212,224,0.5)" }}>
-              {moodDesc}
+        {/* ── Score cell ── */}
+        <div className={`${CELL} justify-between`} style={{ background: "#080C0F" }}>
+          <p className={LABEL} style={{ color: "rgba(232,237,242,0.45)" }}>Gut score</p>
+          <div>
+            <span
+              className="font-mono font-bold leading-none block"
+              style={{ fontSize: 80, color: `rgb(${rgb})`, letterSpacing: "-0.03em" }}
+            >
+              {score}
+            </span>
+            <p className="text-[13px] mt-2" style={{ color: "rgba(232,237,242,0.45)" }}>
+              {scoreLabel(score)}
             </p>
           </div>
+          <div className="h-[3px] rounded-sm overflow-hidden mt-4" style={{ background: "rgba(255,255,255,0.07)" }}>
+            <div
+              className="h-full rounded-sm transition-all duration-1000"
+              style={{ width: `${score}%`, background: `rgb(${rgb})` }}
+            />
+          </div>
+        </div>
 
-          {/* Image viewer OR sensor panel */}
-          {state.file ? (
-            <GutViewer file={state.file} />
-          ) : (
-            <div className="border border-surface-light rounded p-5">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted/40 mb-4">Adjust sensor readings</p>
+        {/* ── Mood cell ── */}
+        <div className={`${CELL} justify-between`} style={{ background: "#080C0F" }}>
+          <p className={LABEL} style={{ color: "rgba(232,237,242,0.45)" }}>Music mood</p>
+          <div>
+            <p className="text-[36px] font-medium leading-tight" style={{ color: `rgb(${rgb})` }}>{mood}</p>
+            <span
+              className="inline-block font-mono text-[10px] px-3 py-1 rounded-full border mt-3 uppercase tracking-widest"
+              style={{ borderColor: `rgb(${rgb})`, color: `rgb(${rgb})` }}
+            >
+              {gutState.replace(/_/g, " ")}
+            </span>
+          </div>
+          <p className="text-[12px] leading-relaxed mt-4" style={{ color: "rgba(232,237,242,0.45)" }}>
+            {moodDesc}
+          </p>
+        </div>
+
+        {/* ── Left panel: viewer + audio + actions ── */}
+        <div className={`${CELL} gap-5 overflow-y-auto`} style={{ background: "#080C0F" }}>
+          <div>
+            <p className={LABEL} style={{ color: "rgba(232,237,242,0.45)" }}>
+              {state.file ? "Input" : "Sensor readings"}
+            </p>
+            {state.file ? (
+              <GutViewer file={state.file} />
+            ) : (
               <SensorPanel onResult={handleSensorResult} />
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Audio player */}
-          <section>
-            <h2 className="font-mono text-[10px] uppercase tracking-widest text-muted/40 mb-3">Sonification</h2>
+          <div>
+            <p className={LABEL} style={{ color: "rgba(232,237,242,0.45)" }}>Sonification</p>
             <AudioPlayer audioUrl={state.audioUrl} />
-          </section>
+          </div>
 
-          {/* Actions */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 mt-auto pt-1">
             {state.file && (
-              <button onClick={handleRegenerate} className="font-mono text-[11px] text-muted hover:text-accent border border-surface-light hover:border-accent/30 rounded px-4 py-2 transition-all duration-300">
+              <button
+                onClick={handleRegenerate}
+                className="font-mono text-[11px] px-4 py-2 rounded border border-white/[0.07] text-muted hover:border-accent/30 hover:text-accent transition-all"
+              >
                 Regenerate
               </button>
             )}
             <button
               onClick={() => setShowSliders(!showSliders)}
-              className={`font-mono text-[11px] border rounded px-4 py-2 transition-all duration-300 ${showSliders ? "text-accent border-accent/30 bg-accent/5" : "text-muted hover:text-accent border-surface-light hover:border-accent/30"}`}
+              className="font-mono text-[11px] px-4 py-2 rounded border transition-all"
+              style={{
+                borderColor: showSliders ? "rgba(0,229,160,0.3)" : "rgba(255,255,255,0.07)",
+                color: showSliders ? "#00E5A0" : "rgba(232,237,242,0.45)",
+                background: showSliders ? "rgba(0,229,160,0.04)" : "transparent",
+              }}
             >
               {showSliders ? "Lock parameters" : "Adjust parameters"}
+            </button>
+            <button
+              onClick={handleReset}
+              className="font-mono text-[11px] px-4 py-2 rounded border border-white/[0.07] text-muted hover:text-foreground transition-all"
+            >
+              ← New scan
             </button>
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div className="lg:w-[62%] flex flex-col gap-6">
-
-          {/* Tab switcher */}
-          <div className="flex gap-6 border-b border-surface-light pb-0">
-            {(["biome", "insights", "bacteria"] as ResultTab[]).map((tab) => (
+        {/* ── Right panel: tabs + content ── */}
+        <div className="flex flex-col overflow-hidden" style={{ background: "#080C0F" }}>
+          {/* Tab bar */}
+          <div className="flex flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            {([
+              { id: "biome"    as ResultTab, label: "Biome state" },
+              { id: "insights" as ResultTab, label: "How to improve" },
+              { id: "bacteria" as ResultTab, label: "Bacteria guide" },
+            ]).map(({ id, label }) => (
               <button
-                key={tab}
-                onClick={() => setResultTab(tab)}
-                className={`font-mono text-[10px] uppercase tracking-widest pb-3 border-b-2 transition-all duration-200 ${
-                  resultTab === tab
-                    ? "text-accent border-accent"
-                    : "text-muted border-transparent hover:text-foreground"
-                }`}
-                style={{ marginBottom: "-1px" }}
+                key={id}
+                onClick={() => setResultTab(id)}
+                className="flex-1 font-mono text-[10px] uppercase tracking-[0.1em] py-3.5 border-r last:border-r-0 transition-colors"
+                style={{
+                  borderColor: "rgba(255,255,255,0.07)",
+                  color: resultTab === id ? "#00E5A0" : "rgba(232,237,242,0.35)",
+                  background: resultTab === id ? "rgba(0,229,160,0.04)" : "transparent",
+                }}
               >
-                {tab === "biome" ? "Biome state" : tab === "insights" ? "How to improve" : "Bacteria guide"}
+                {label}
               </button>
             ))}
           </div>
 
-          {/* Biome dashboard tab */}
-          {resultTab === "biome" && (
-            <section>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto p-7">
+            {resultTab === "biome" && (
               <BiomeDashboard
                 biomeState={state.biomeState}
                 onAdjust={showSliders ? handleBiomeAdjust : undefined}
               />
-            </section>
-          )}
-
-          {/* Insights tab */}
-          {resultTab === "insights" && (
-            <GutInsights
-              biomeState={state.biomeState}
-              gutScore={score}
-              mood={mood}
-              gutStateLabel={gutState}
-            />
-          )}
-
-          {/* Bacteria guide tab */}
-          {resultTab === "bacteria" && (
-            <BacteriaGuide
-              biomeState={state.biomeState}
-              gutScore={score}
-              mood={mood}
-              gutStateLabel={gutState}
-            />
-          )}
+            )}
+            {resultTab === "insights" && (
+              <GutInsights
+                biomeState={state.biomeState}
+                gutScore={score}
+                mood={mood}
+                gutStateLabel={gutState}
+              />
+            )}
+            {resultTab === "bacteria" && (
+              <BacteriaGuide biomeState={state.biomeState} />
+            )}
+          </div>
         </div>
+
+        {/* ── Waveform strip — full width ── */}
+        <div
+          className="lg:col-span-2 flex flex-col flex-shrink-0"
+          style={{ background: "#080C0F", height: "180px" }}
+        >
+          <p
+            className="font-mono text-[10px] uppercase tracking-[0.15em] px-8 pt-4 mb-1 flex-shrink-0"
+            style={{ color: "rgba(232,237,242,0.45)" }}
+          >
+            Waveform
+          </p>
+          <div className="flex-1 min-h-0 px-8 pb-4">
+            <WaveformAnimation
+              color={`rgb(${rgb})`}
+              complexity={state.biomeState.diversity_index}
+              inflammation={state.biomeState.inflammation_score}
+              height={120}
+            />
+          </div>
+        </div>
+
       </div>
     </main>
   );
