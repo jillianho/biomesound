@@ -13,9 +13,11 @@ import GutInsights from "@/components/GutInsights";
 import { runPipeline, getAudioUrl, generateFromState, type BiomeState } from "@/lib/api";
 import BacteriaGuide from "@/components/BacteriaGuide";
 import WaveformAnimation from "@/components/WaveformAnimation";
+import InstrumentPanel from "@/components/InstrumentPanel";
+import PredictionPanel from "@/components/PredictionPanel";
 
 type InputMode = "image" | "sensor";
-type ResultTab = "biome" | "insights" | "bacteria";
+type ResultTab = "biome" | "instruments" | "forecast" | "insights" | "bacteria";
 
 interface ResultMeta {
   state: string;
@@ -332,9 +334,11 @@ export default function Home() {
           {/* Tab bar */}
           <div className="flex flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
             {([
-              { id: "biome"    as ResultTab, label: "Biome state" },
-              { id: "insights" as ResultTab, label: "How to improve" },
-              { id: "bacteria" as ResultTab, label: "Bacteria guide" },
+              { id: "biome"       as ResultTab, label: "State" },
+              { id: "instruments" as ResultTab, label: "Orchestra" },
+              { id: "forecast"    as ResultTab, label: "Forecast" },
+              { id: "insights"    as ResultTab, label: "Improve" },
+              { id: "bacteria"    as ResultTab, label: "Species" },
             ]).map(({ id, label }) => (
               <button
                 key={id}
@@ -358,6 +362,12 @@ export default function Home() {
                 biomeState={state.biomeState}
                 onAdjust={showSliders ? handleBiomeAdjust : undefined}
               />
+            )}
+            {resultTab === "instruments" && (
+              <InstrumentPanel biomeState={state.biomeState} />
+            )}
+            {resultTab === "forecast" && (
+              <PredictionPanel biomeState={state.biomeState} />
             )}
             {resultTab === "insights" && (
               <GutInsights

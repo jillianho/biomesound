@@ -100,3 +100,96 @@ export async function sendSensorReading(
   if (!res.ok) throw new Error(`Sensor failed: ${res.status}`);
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Instruments
+// ---------------------------------------------------------------------------
+
+export interface InstrumentInfo {
+  id: string;
+  name: string;
+  instrument: string;
+  role: "good" | "bad" | "archaea";
+  oscillator: string;
+  freq_base: number;
+  percussive: boolean;
+  sporadic: boolean;
+  active: boolean;
+  amplitude: number;
+}
+
+export interface InstrumentResponse {
+  instruments: InstrumentInfo[];
+  active_count: number;
+  tempo_bpm: number;
+  harmonic_richness: number;
+  inflammation_detune: number;
+}
+
+export async function getInstruments(biomeState: BiomeState): Promise<InstrumentResponse> {
+  const res = await fetch(`${API_BASE}/api/instruments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ biome_state: biomeState }),
+  });
+  if (!res.ok) throw new Error(`Instruments failed: ${res.status}`);
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Trajectory prediction
+// ---------------------------------------------------------------------------
+
+export interface PredictEvent {
+  type: string;
+  offset_seconds: number;
+}
+
+export interface ParamPrediction {
+  mean: number[];
+  lower: number[];
+  upper: number[];
+  std: number[];
+}
+
+export interface PredictResponse {
+  t_steps: number[];
+  predictions: Record<string, ParamPrediction>;
+  confidence: number[];
+  events_applied: string[];
+  n_observations: number;
+  instrument_trajectory: Record<string, number[]>;
+  audio_url?: string;
+}
+
+export async function predictTrajectory(
+  biomeState: BiomeState,
+  events: PredictEvent[],
+  horizonSeconds = 86_400,
+  nSteps = 48,
+): Promise<PredictResponse> {
+  const observations = [{ timestamp: Date.now() / 1000, biome_state: biomeState }];
+  const res = await fetch(`${API_BASE}/api/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ horizon_seconds: horizonSeconds, n_steps: nSteps, events, observations }),
+  });
+  if (!res.ok) throw new Error(`Predict failed: ${res.status}`);
+  return res.json();
+}
+
+export async function predictAudio(
+  biomeState: BiomeState,
+  events: PredictEvent[],
+  horizonSeconds = 86_400,
+  nSteps = 24,
+): Promise<PredictResponse> {
+  const observations = [{ timestamp: Date.now() / 1000, biome_state: biomeState }];
+  const res = await fetch(`${API_BASE}/api/predict/audio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ horizon_seconds: horizonSeconds, n_steps: nSteps, events, observations }),
+  });
+  if (!res.ok) throw new Error(`Predict audio failed: ${res.status}`);
+  return res.json();
+}
