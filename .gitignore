@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 backend/venv/
+backend/.venv/
 *.egg-info/
 dist/
 build/
