@@ -25,9 +25,10 @@ const OSC_LABELS: Record<string, string> = {
 
 interface InstrumentPanelProps {
   biomeState: BiomeState;
+  genre?: string;
 }
 
-export default function InstrumentPanel({ biomeState }: InstrumentPanelProps) {
+export default function InstrumentPanel({ biomeState, genre = "classical" }: InstrumentPanelProps) {
   const [data, setData] = useState<{
     instruments: InstrumentInfo[];
     active_count: number;
@@ -40,12 +41,12 @@ export default function InstrumentPanel({ biomeState }: InstrumentPanelProps) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getInstruments(biomeState)
+    getInstruments(biomeState, genre)
       .then((d) => { if (!cancelled) setData(d); })
       .catch(console.error)
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [biomeState]);
+  }, [biomeState, genre]);
 
   if (loading) {
     return (

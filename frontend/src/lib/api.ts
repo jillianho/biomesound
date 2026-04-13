@@ -21,13 +21,15 @@ export interface PipelineResponse {
 export async function runPipeline(
   file: File,
   durationSeconds: number = 30,
-  seed?: number
+  seed?: number,
+  genre: string = "classical",
 ): Promise<PipelineResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
   const params = new URLSearchParams();
   params.set("duration_seconds", String(durationSeconds));
+  params.set("genre", genre);
   if (seed !== undefined) params.set("seed", String(seed));
 
   const res = await fetch(`${API_BASE}/api/pipeline?${params}`, {
@@ -50,7 +52,8 @@ export function getAudioUrl(path: string): string {
 export async function generateFromState(
   biomeState: BiomeState,
   durationSeconds: number = 30,
-  seed?: number
+  seed?: number,
+  genre: string = "classical",
 ): Promise<string> {
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: "POST",
@@ -59,6 +62,7 @@ export async function generateFromState(
       biome_state: biomeState,
       duration_seconds: durationSeconds,
       seed: seed ?? Math.floor(Math.random() * 100000),
+      genre,
     }),
   });
 
@@ -102,6 +106,108 @@ export async function sendSensorReading(
 }
 
 // ---------------------------------------------------------------------------
+// Comprehensive multi-channel analysis
+// ---------------------------------------------------------------------------
+
+export interface Disagreement {
+  parameter: string;
+  channel_a: string;
+  channel_b: string;
+  value_a: number;
+  value_b: number;
+  delta: number;
+  severity: "low" | "moderate" | "high";
+}
+
+export interface ComprehensiveResponse {
+  fused_biome_state: BiomeState;
+  channel_states: Record<string, BiomeState>;
+  channels_used: string[];
+  missing_channels: string[];
+  channels_count: number;
+  overall_confidence: number;
+  disagreements: Disagreement[];
+  active_instruments: { id: string; name: string; instrument: string; role: string; amplitude: number }[];
+  audio_url: string;
+  gut_score: number;
+  state: string;
+  mood: string;
+}
+
+export async function runComprehensive(params: {
+  file?: File;
+  ph?: number;
+  temp_c?: number;
+  h2_ppm?: number;
+  ch4_ppm?: number;
+  duration_seconds?: number;
+  seed?: number;
+  genre?: string;
+}): Promise<ComprehensiveResponse> {
+  const formData = new FormData();
+  if (params.file) formData.append("file", params.file);
+  if (params.ph !== undefined) formData.append("ph", String(params.ph));
+  if (params.temp_c !== undefined) formData.append("temp_c", String(params.temp_c));
+  if (params.h2_ppm !== undefined) formData.append("h2_ppm", String(params.h2_ppm));
+  if (params.ch4_ppm !== undefined) formData.append("ch4_ppm", String(params.ch4_ppm));
+  formData.append("duration_seconds", String(params.duration_seconds ?? 30));
+  if (params.seed !== undefined) formData.append("seed", String(params.seed));
+  formData.append("genre", params.genre ?? "classical");
+
+  const res = await fetch(`${API_BASE}/api/comprehensive`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Comprehensive analysis failed: ${res.status} ${text}`);
+  }
+
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Questionnaire — dietary/lifestyle inputs
+// ---------------------------------------------------------------------------
+
+export interface QuestionnaireInput {
+  fiber_servings?: number;
+  alcohol_units?: number;
+  exercise_minutes?: number;
+  stress_level?: number;
+  sleep_hours?: number;
+  duration_seconds?: number;
+  seed?: number;
+  genre?: string;
+}
+
+export interface QuestionnaireResponse {
+  biome_state: BiomeState;
+  estimated_biomarkers: { ph: number; h2_ppm: number; ch4_ppm: number; temp_c: number };
+  state: string;
+  mood: string;
+  score: number;
+  audio_url: string;
+  active_instruments: { id: string; name: string; instrument: string; role: string; amplitude: number }[];
+}
+
+export async function runQuestionnaire(
+  params: QuestionnaireInput,
+): Promise<QuestionnaireResponse> {
+  const res = await fetch(`${API_BASE}/api/questionnaire`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Questionnaire failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
 // Instruments
 // ---------------------------------------------------------------------------
 
@@ -126,11 +232,14 @@ export interface InstrumentResponse {
   inflammation_detune: number;
 }
 
-export async function getInstruments(biomeState: BiomeState): Promise<InstrumentResponse> {
+export async function getInstruments(
+  biomeState: BiomeState,
+  genre: string = "classical",
+): Promise<InstrumentResponse> {
   const res = await fetch(`${API_BASE}/api/instruments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ biome_state: biomeState }),
+    body: JSON.stringify({ biome_state: biomeState, genre }),
   });
   if (!res.ok) throw new Error(`Instruments failed: ${res.status}`);
   return res.json();

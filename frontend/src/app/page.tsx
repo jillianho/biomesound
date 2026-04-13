@@ -10,14 +10,26 @@ import GutViewer from "@/components/GutViewer";
 import HowItWorks from "@/components/HowItWorks";
 import SensorPanel from "@/components/SensorPanel";
 import GutInsights from "@/components/GutInsights";
-import { runPipeline, getAudioUrl, generateFromState, type BiomeState } from "@/lib/api";
+import { runPipeline, getAudioUrl, generateFromState, type BiomeState, type ComprehensiveResponse } from "@/lib/api";
 import BacteriaGuide from "@/components/BacteriaGuide";
 import WaveformAnimation from "@/components/WaveformAnimation";
 import InstrumentPanel from "@/components/InstrumentPanel";
 import PredictionPanel from "@/components/PredictionPanel";
+import ComprehensivePanel from "@/components/ComprehensivePanel";
+import QuestionnairePanel from "@/components/QuestionnairePanel";
 
-type InputMode = "image" | "sensor";
+type InputMode = "image" | "sensor" | "comprehensive" | "questionnaire";
 type ResultTab = "biome" | "instruments" | "forecast" | "insights" | "bacteria";
+
+const GENRE_OPTIONS = [
+  { id: "classical",  label: "Classical" },
+  { id: "edm",        label: "EDM" },
+  { id: "ambient",    label: "Ambient" },
+  { id: "jazz",       label: "Jazz" },
+  { id: "lofi",       label: "Lo-fi" },
+  { id: "industrial", label: "Industrial" },
+] as const;
+type GenreId = typeof GENRE_OPTIONS[number]["id"];
 
 interface ResultMeta {
   state: string;
@@ -28,7 +40,7 @@ interface ResultMeta {
 type AppState =
   | { view: "landing" }
   | { view: "processing"; file: File; phase: "extracting" | "inferring" | "composing" }
-  | { view: "result"; file?: File; biomeState: BiomeState; audioUrl: string; meta?: ResultMeta };
+  | { view: "result"; file?: File; biomeState: BiomeState; audioUrl: string; meta?: ResultMeta; comprehensiveResult?: ComprehensiveResponse };
 
 // mood descriptions matching sensor_inference.py states
 const MOOD_DESCRIPTIONS: Record<string, string> = {
@@ -84,6 +96,20 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const [showSliders, setShowSliders] = useState(false);
+  const [genre, setGenre] = useState<GenreId>("classical");
+  const [genreLoading, setGenreLoading] = useState(false);
+
+  const handleGenreChange = useCallback(async (newGenre: GenreId, currentState: AppState) => {
+    setGenre(newGenre);
+    if (currentState.view !== "result") return;
+    setGenreLoading(true);
+    try {
+      const audioUrl = await generateFromState(currentState.biomeState, 30, undefined, newGenre);
+      setState(prev => prev.view === "result" ? { ...prev, audioUrl } : prev);
+    } catch { /* silent */ } finally {
+      setGenreLoading(false);
+    }
+  }, []);
 
   const transitionTo = useCallback((newState: AppState) => {
     setTransitioning(true);
@@ -101,7 +127,7 @@ export default function Home() {
     const t1 = setTimeout(() => setState((s) => s.view === "processing" ? { ...s, phase: "inferring" } : s), 2000);
     const t2 = setTimeout(() => setState((s) => s.view === "processing" ? { ...s, phase: "composing" } : s), 4000);
     try {
-      const result = await runPipeline(file);
+      const result = await runPipeline(file, 30, undefined, genre);
       clearTimeout(t1); clearTimeout(t2);
       const { state: gutState, mood } = deriveMood(result.biome_state);
       transitionTo({
@@ -122,6 +148,16 @@ export default function Home() {
     setState({ view: "result", biomeState, audioUrl, meta });
   }, []);
 
+  const handleComprehensiveResult = useCallback((
+    biomeState: BiomeState,
+    audioUrl: string,
+    meta: ResultMeta,
+    comprehensive: ComprehensiveResponse,
+  ) => {
+    setResultTab("biome");
+    setState({ view: "result", biomeState, audioUrl, meta, comprehensiveResult: comprehensive });
+  }, []);
+
   const handleReset = () => { setShowSliders(false); transitionTo({ view: "landing" }); setError(null); };
 
   const handleRegenerate = async () => {
@@ -129,7 +165,7 @@ export default function Home() {
     const seed = Math.floor(Math.random() * 100000);
     transitionTo({ view: "processing", file: state.file, phase: "composing" });
     try {
-      const result = await runPipeline(state.file, 30, seed);
+      const result = await runPipeline(state.file, 30, seed, genre);
       const { state: gutState, mood } = deriveMood(result.biome_state);
       transitionTo({ view: "result", file: state.file, biomeState: result.biome_state, audioUrl: getAudioUrl(result.audio_url), meta: { state: gutState, mood, score: deriveScore(result.biome_state) } });
     } catch (err) {
@@ -141,7 +177,7 @@ export default function Home() {
   const handleBiomeAdjust = async (adjusted: BiomeState) => {
     if (state.view !== "result") return;
     try {
-      const audioUrl = await generateFromState(adjusted);
+      const audioUrl = await generateFromState(adjusted, 30, undefined, genre);
       const { state: gutState, mood } = deriveMood(adjusted);
       setState({ ...state, biomeState: adjusted, audioUrl, meta: { state: gutState, mood, score: deriveScore(adjusted) } });
     } catch { /* silent */ }
@@ -168,17 +204,27 @@ export default function Home() {
             <button onClick={() => setInputMode("image")} className={`font-mono text-[11px] uppercase tracking-widest px-5 py-2 transition-all duration-200 border-r border-surface-light ${inputMode === "image" ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"}`}>
               Image / Video
             </button>
-            <button onClick={() => setInputMode("sensor")} className={`font-mono text-[11px] uppercase tracking-widest px-5 py-2 transition-all duration-200 ${inputMode === "sensor" ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"}`}>
-              Sensor input
+            <button onClick={() => setInputMode("sensor")} className={`font-mono text-[11px] uppercase tracking-widest px-5 py-2 transition-all duration-200 border-r border-surface-light ${inputMode === "sensor" ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"}`}>
+              Sensor
+            </button>
+            <button onClick={() => setInputMode("comprehensive")} className={`font-mono text-[11px] uppercase tracking-widest px-5 py-2 transition-all duration-200 ${inputMode === "comprehensive" ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"}`}>
+              Multi-channel
             </button>
           </div>
 
-          {inputMode === "image" ? (
+          {inputMode === "image" && (
             <UploadZone onFileSelected={handleFileSelected} />
-          ) : (
+          )}
+          {inputMode === "sensor" && (
             <div className="w-full border border-surface-light rounded p-6">
               <p className="font-mono text-[10px] uppercase tracking-widest text-muted/40 mb-4">Pillbot sensor readings</p>
               <SensorPanel onResult={handleSensorResult} />
+            </div>
+          )}
+          {inputMode === "comprehensive" && (
+            <div className="w-full border border-surface-light rounded p-6">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted/40 mb-4">Comprehensive analysis</p>
+              <ComprehensivePanel genre={genre} onResult={handleComprehensiveResult} />
             </div>
           )}
 
@@ -296,6 +342,35 @@ export default function Home() {
           </div>
 
           <div>
+            <p className={LABEL} style={{ color: "rgba(232,237,242,0.45)" }}>
+              Genre
+              {genreLoading && (
+                <span className="ml-2 normal-case tracking-normal animate-pulse" style={{ color: "rgba(0,229,160,0.5)" }}>
+                  composing…
+                </span>
+              )}
+            </p>
+            <div className="grid grid-cols-3 gap-px" style={{ background: "rgba(255,255,255,0.07)" }}>
+              {GENRE_OPTIONS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => handleGenreChange(id, state)}
+                  disabled={genreLoading}
+                  className="font-mono text-[9px] uppercase tracking-[0.12em] py-2 transition-all"
+                  style={{
+                    background: genre === id ? "rgba(0,229,160,0.08)" : "#080C0F",
+                    color: genre === id ? "#00E5A0" : "rgba(232,237,242,0.35)",
+                    borderBottom: genre === id ? "1px solid rgba(0,229,160,0.4)" : "1px solid transparent",
+                    opacity: genreLoading && genre !== id ? 0.4 : 1,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <p className={LABEL} style={{ color: "rgba(232,237,242,0.45)" }}>Sonification</p>
             <AudioPlayer audioUrl={state.audioUrl} />
           </div>
@@ -358,13 +433,18 @@ export default function Home() {
           {/* Tab content */}
           <div className="flex-1 overflow-y-auto p-7">
             {resultTab === "biome" && (
-              <BiomeDashboard
-                biomeState={state.biomeState}
-                onAdjust={showSliders ? handleBiomeAdjust : undefined}
-              />
+              <>
+                {state.view === "result" && state.comprehensiveResult && (
+                  <ChannelComparisonView data={state.comprehensiveResult} />
+                )}
+                <BiomeDashboard
+                  biomeState={state.biomeState}
+                  onAdjust={showSliders ? handleBiomeAdjust : undefined}
+                />
+              </>
             )}
             {resultTab === "instruments" && (
-              <InstrumentPanel biomeState={state.biomeState} />
+              <InstrumentPanel biomeState={state.biomeState} genre={genre} />
             )}
             {resultTab === "forecast" && (
               <PredictionPanel biomeState={state.biomeState} />
@@ -406,5 +486,150 @@ export default function Home() {
 
       </div>
     </main>
+  );
+}
+
+
+/* ── Channel comparison view (comprehensive mode) ────────────────────────── */
+
+const COMP_PARAM_LABELS: Record<string, string> = {
+  diversity_index:         "Diversity",
+  inflammation_score:      "Inflammation",
+  firmicutes_dominance:    "Firmicutes",
+  bacteroidetes_dominance: "Bacteroidetes",
+  proteobacteria_bloom:    "Proteobacteria",
+  motility_activity:       "Motility",
+  mucosal_integrity:       "Mucosal integrity",
+  metabolic_energy:        "Metabolic energy",
+};
+
+const COMP_CH_LABELS: Record<string, string> = {
+  visual: "Visual", ph_temp: "Capsule", breath_gas: "Breath",
+};
+
+const COMP_CH_RGB: Record<string, string> = {
+  visual: "138, 180, 248", ph_temp: "0, 229, 160", breath_gas: "245, 166, 35",
+};
+
+function ChannelComparisonView({ data }: { data: ComprehensiveResponse }) {
+  // index disagreements by parameter for quick lookup
+  const disagMap = new Map<string, typeof data.disagreements>();
+  for (const d of data.disagreements) {
+    const list = disagMap.get(d.parameter) || [];
+    list.push(d);
+    disagMap.set(d.parameter, list);
+  }
+
+  const confColor =
+    data.overall_confidence > 0.7 ? "#00E5A0"
+    : data.overall_confidence > 0.5 ? "rgb(245,166,35)"
+    : "rgb(255,76,76)";
+
+  return (
+    <div className="flex flex-col gap-5 mb-8 pb-6" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+
+      {/* Confidence */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="font-mono text-[9px] uppercase tracking-[0.15em]" style={{ color: "rgba(232,237,242,0.4)" }}>
+            Confidence
+          </span>
+          <span className="font-mono text-[14px] font-bold" style={{ color: confColor }}>
+            {Math.round(data.overall_confidence * 100)}%
+          </span>
+        </div>
+        <div className="h-[3px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${data.overall_confidence * 100}%`, background: confColor }}
+          />
+        </div>
+        <p className="font-mono text-[9px] mt-1.5" style={{ color: "rgba(232,237,242,0.3)" }}>
+          {data.channels_count} channel{data.channels_count !== 1 ? "s" : ""} active
+          {data.missing_channels.length > 0 &&
+            ` \u00B7 missing: ${data.missing_channels.map(c => COMP_CH_LABELS[c] || c).join(", ")}`}
+        </p>
+      </div>
+
+      {/* Channel legend */}
+      <div className="flex flex-wrap gap-3">
+        {data.channels_used.map(ch => (
+          <span key={ch} className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ background: `rgb(${COMP_CH_RGB[ch]})` }} />
+            <span className="font-mono text-[9px]" style={{ color: `rgb(${COMP_CH_RGB[ch]})` }}>
+              {COMP_CH_LABELS[ch] || ch}
+            </span>
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-sm" style={{ background: "rgba(232,237,242,0.6)" }} />
+          <span className="font-mono text-[9px]" style={{ color: "rgba(232,237,242,0.6)" }}>Fused</span>
+        </span>
+      </div>
+
+      {/* Per-parameter comparison */}
+      <div className="flex flex-col gap-3">
+        {Object.entries(COMP_PARAM_LABELS).map(([param, label]) => {
+          const fused = data.fused_biome_state[param as keyof BiomeState];
+          const disags = disagMap.get(param) || [];
+
+          return (
+            <div key={param}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-mono text-[9px] uppercase tracking-wider" style={{ color: "rgba(232,237,242,0.4)" }}>
+                  {label}
+                </span>
+                <span className="font-mono text-[10px] tabular-nums" style={{ color: "rgba(232,237,242,0.6)" }}>
+                  {fused.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-[2px]">
+                {data.channels_used.map(ch => {
+                  const val = (data.channel_states[ch] as BiomeState)?.[param as keyof BiomeState];
+                  if (val === undefined) return null;
+                  const rgb = COMP_CH_RGB[ch];
+                  return (
+                    <div key={ch} className="flex items-center gap-2">
+                      <div className="flex-1 h-[2px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${val * 100}%`, background: `rgb(${rgb})` }} />
+                      </div>
+                      <span className="font-mono text-[8px] tabular-nums w-8 text-right" style={{ color: `rgba(${rgb}, 0.6)` }}>
+                        {val.toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* Fused bar */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-[2px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${fused * 100}%`, background: "rgba(232,237,242,0.5)" }} />
+                  </div>
+                  <span className="font-mono text-[8px] tabular-nums w-8 text-right" style={{ color: "rgba(232,237,242,0.4)" }}>
+                    {fused.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Disagreement warnings */}
+              {disags.map((d, i) => (
+                <p
+                  key={i}
+                  className="font-mono text-[8px] mt-0.5 pl-1"
+                  style={{
+                    color: d.severity === "high" ? "rgb(255,76,76)"
+                         : d.severity === "moderate" ? "rgb(255,140,66)"
+                         : "rgb(245,166,35)",
+                  }}
+                >
+                  {COMP_CH_LABELS[d.channel_a]} &amp; {COMP_CH_LABELS[d.channel_b]} disagree
+                  ({d.value_a.toFixed(2)} vs {d.value_b.toFixed(2)})
+                </p>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
