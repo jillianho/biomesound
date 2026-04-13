@@ -32,17 +32,8 @@ app = FastAPI(title="Biome Sound API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://localhost:8049",
-        "https://frontend-lemon-five-25.vercel.app",
-        "https://frontend-hd4op2veb-raza-jafris-projects.vercel.app",
-        "https://frontend-cuyibpx6q-raza-jafris-projects.vercel.app",
-    ],
-    allow_origin_regex=r"https://frontend-.*-raza-jafris-projects\.vercel\.app",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
