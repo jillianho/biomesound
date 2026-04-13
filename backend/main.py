@@ -193,6 +193,11 @@ async def get_audio(audio_id: str):
     )
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "Biome Sound API is running. See /docs for endpoints."}
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
