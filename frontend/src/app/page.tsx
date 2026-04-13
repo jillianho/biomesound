@@ -16,7 +16,6 @@ import WaveformAnimation from "@/components/WaveformAnimation";
 import InstrumentPanel from "@/components/InstrumentPanel";
 import PredictionPanel from "@/components/PredictionPanel";
 import ComprehensivePanel from "@/components/ComprehensivePanel";
-import QuestionnairePanel from "@/components/QuestionnairePanel";
 
 type InputMode = "image" | "sensor" | "comprehensive" | "questionnaire";
 type ResultTab = "biome" | "instruments" | "forecast" | "insights" | "bacteria";
@@ -91,7 +90,7 @@ function deriveMood(b: BiomeState): { state: string; mood: string } {
 
 export default function Home() {
   const [state, setState] = useState<AppState>({ view: "landing" });
-  const [inputMode, setInputMode] = useState<InputMode>("image");
+  const [inputMode, setInputMode] = useState<InputMode>("sensor");
   const [resultTab, setResultTab] = useState<ResultTab>("biome");
   const [error, setError] = useState<string | null>(null);
   const [transitioning, setTransitioning] = useState(false);
