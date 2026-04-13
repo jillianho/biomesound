@@ -13,7 +13,7 @@ export default function WaveformAnimation({ color = "#00E5A0", complexity = 0.5,
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const phaseRef = useRef(0);
-  const animRef = useRef<number>();
+  const animRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     let running = true;
